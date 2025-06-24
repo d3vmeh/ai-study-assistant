@@ -28,27 +28,38 @@ def get_assistant_response(question,image_path):
         "content": [
             {
             "type": "text",
-            "text": """
-            
-            You are a a teaching assistant for a class the user is taking. You are responsible for answering questions and helping the user understand the material.
-           
+            "text": """You are an expert teaching assistant helping students understand academic material across all subjects. Your role is to provide clear, accurate, and pedagogically sound explanations that promote learning.
 
-            An image may be provided to help you answer the question.
+CORE PRINCIPLES:
+- Break down complex concepts into digestible steps
+- Use analogies and examples when helpful
+- Encourage critical thinking rather than just providing answers
+- Adapt explanations to the apparent level of the question
+- Be patient and supportive in your tone
 
+ANALYSIS APPROACH:
+1. Carefully examine any provided image for relevant information
+2. Identify the subject area and specific concepts involved
+3. Determine the appropriate level of explanation needed
+4. Consider common misconceptions or difficulties students face with this topic
 
-            Respond in a structured format (e.g., JSON) with the following fields:
-            - answer: your answer to the question.
-            - explanation: your explanation for your answer.
+RESPONSE FORMAT:
+Provide your response as valid JSON with these fields:
+- "answer": A clear, direct answer to the question
+- "explanation": A detailed explanation of the reasoning and concepts
+- "key_concepts": An array of important concepts or terms covered
+- "next_steps": Suggestions for further learning or practice (optional)
 
-            Example question and response:
-            Question: "What is the derivative of x²?"
-            Response: {
-                "answer": "The derivative of x² is 2x.",
-                "explanation": "Using the power rule for differentiation, when we have x^n, the derivative is n*x^(n-1). For x², n=2, so the derivative is 2*x^(2-1) = 2x."
-            }
-            
+EXAMPLE:
+Question: "What is the derivative of x²?"
+{
+    "answer": "The derivative of x² is 2x",
+    "explanation": "Using the power rule for differentiation: when we have x^n, the derivative is n×x^(n-1). For x², n=2, so we get 2×x^(2-1) = 2×x^1 = 2x. This represents the instantaneous rate of change of the function at any point.",
+    "key_concepts": ["power rule", "derivative", "rate of change"],
+    "next_steps": "Try practicing with other polynomial functions like x³ or 3x⁴"
+}
 
-            Here is the user's question: """+question+"""
+Question: """ + question + """
             """
             },
             {
@@ -61,7 +72,7 @@ def get_assistant_response(question,image_path):
         }
     ],
 
-    "max_tokens": 300
+    "max_tokens": 800
     }
 
     response = requests.post("https://api.openai.com/v1/chat/completions", headers=headers, json=payload)
@@ -72,8 +83,26 @@ def get_assistant_response(question,image_path):
         cleaned_response = structured_response.strip('```json\n').strip('```').strip()
         try:
             response_dict = json.loads(cleaned_response)
+            # Ensure required fields exist
+            if 'answer' not in response_dict:
+                response_dict['answer'] = "Answer not provided"
+            if 'explanation' not in response_dict:
+                response_dict['explanation'] = "Explanation not provided"
+            if 'key_concepts' not in response_dict:
+                response_dict['key_concepts'] = []
             return response_dict
         except json.JSONDecodeError:
-            return {"error": "Failed to decode response as JSON", "content": structured_response}
+            return {
+                "error": "Failed to decode response as JSON", 
+                "content": structured_response,
+                "answer": "Error in response format",
+                "explanation": "The AI response could not be parsed properly. Raw content available in 'content' field.",
+                "key_concepts": []
+            }
     else:
-        return {"error": "No valid response from model"}
+        return {
+            "error": "No valid response from model",
+            "answer": "No response received",
+            "explanation": "The AI model did not provide a valid response.",
+            "key_concepts": []
+        }
