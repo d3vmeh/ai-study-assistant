@@ -43,24 +43,25 @@ ANALYSIS APPROACH:
 3. Determine the appropriate level of explanation needed
 4. Consider common misconceptions or difficulties students face with this topic
 
-RESPONSE FORMAT:
-Provide your response as valid JSON with these fields:
-- "answer": A clear, direct answer to the question
-- "explanation": A detailed explanation of the reasoning and concepts
-- "key_concepts": An array of important concepts or terms covered
-- "next_steps": Suggestions for further learning or practice (optional)
+IMPORTANT: You must respond with ONLY valid JSON. Do not include any text before or after the JSON object.
 
-EXAMPLE:
-Question: "What is the derivative of x²?"
+RESPONSE FORMAT:
 {
-    "answer": "The derivative of x² is 2x",
-    "explanation": "Using the power rule for differentiation: when we have x^n, the derivative is n×x^(n-1). For x², n=2, so we get 2×x^(2-1) = 2×x^1 = 2x. This represents the instantaneous rate of change of the function at any point.",
-    "key_concepts": ["power rule", "derivative", "rate of change"],
-    "next_steps": "Try practicing with other polynomial functions like x³ or 3x⁴"
+    "answer": "A clear, direct answer to the question",
+    "explanation": "A detailed explanation with formatting. Use <newline><newline> for paragraph breaks, **bold** for emphasis, and $ for LaTeX math",
+    "key_concepts": ["concept1", "concept2", "concept3"],
+    "next_steps": "Optional suggestions for further learning"
 }
 
+For the explanation field:
+- Use <newline><newline> (not \\n\\n) for paragraph breaks
+- Use **text** for bold subtitles
+- Use $equation$ for inline math and $$equation$$ for display math
+- Use numbered lists (1. 2. 3.) or bullet points (- item)
+
 Question: """ + question + """
-            """
+
+Remember: Respond with ONLY the JSON object, no additional text."""
             },
             {
             "type": "image_url",
@@ -72,7 +73,7 @@ Question: """ + question + """
         }
     ],
 
-    "max_tokens": 800
+    "max_tokens": 1500
     }
 
     response = requests.post("https://api.openai.com/v1/chat/completions", headers=headers, json=payload)
@@ -88,15 +89,38 @@ Question: """ + question + """
                 response_dict['answer'] = "Answer not provided"
             if 'explanation' not in response_dict:
                 response_dict['explanation'] = "Explanation not provided"
+            else:
+                # Replace <newline> tags with actual newlines
+                response_dict['explanation'] = response_dict['explanation'].replace('<newline>', '\n')
             if 'key_concepts' not in response_dict:
                 response_dict['key_concepts'] = []
             return response_dict
-        except json.JSONDecodeError:
+        except json.JSONDecodeError as e:
+            # Try to extract JSON from the response if it's embedded in text
+            import re
+            # More robust regex to handle nested objects and arrays
+            json_match = re.search(r'\{(?:[^{}]|(?:\{[^{}]*\}))*\}', structured_response, re.DOTALL)
+            if json_match:
+                try:
+                    response_dict = json.loads(json_match.group())
+                    if 'answer' not in response_dict:
+                        response_dict['answer'] = "Answer not provided"
+                    if 'explanation' not in response_dict:
+                        response_dict['explanation'] = "Explanation not provided"
+                    else:
+                        response_dict['explanation'] = response_dict['explanation'].replace('<newline>', '\n')
+                    if 'key_concepts' not in response_dict:
+                        response_dict['key_concepts'] = []
+                    return response_dict
+                except:
+                    pass
+            
+            # If all else fails, return error with debug info
             return {
-                "error": "Failed to decode response as JSON", 
+                "error": f"Failed to decode response as JSON: {str(e)}", 
                 "content": structured_response,
                 "answer": "Error in response format",
-                "explanation": "The AI response could not be parsed properly. Raw content available in 'content' field.",
+                "explanation": f"The AI response could not be parsed properly. Raw content: {structured_response[:500]}...",
                 "key_concepts": []
             }
     else:
