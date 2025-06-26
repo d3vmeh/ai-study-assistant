@@ -48,7 +48,7 @@ IMPORTANT: You must respond with ONLY valid JSON. Do not include any text before
 RESPONSE FORMAT:
 {
     "answer": "A clear, direct answer to the question",
-    "explanation": "A detailed explanation with formatting. Use <newline><newline> for paragraph breaks, **bold** for emphasis, and $ for LaTeX math",
+    "explanation": "A detailed explanation with formatting. Use <newline><newline> for paragraph breaks, **bold** for emphasis, and avoid backslashes in math - use plain text for mathematical expressions",
     "key_concepts": ["concept1", "concept2", "concept3"],
     "next_steps": "Optional suggestions for further learning"
 }
@@ -56,8 +56,9 @@ RESPONSE FORMAT:
 For the explanation field:
 - Use <newline><newline> (not \\n\\n) for paragraph breaks
 - Use **text** for bold subtitles
-- Use $equation$ for inline math and $$equation$$ for display math
+- Use plain text for mathematical expressions (avoid backslashes and LaTeX syntax)
 - Use numbered lists (1. 2. 3.) or bullet points (- item)
+- IMPORTANT: Avoid all backslash characters as they cause JSON parsing errors
 
 Question: """ + question + """
 
@@ -82,6 +83,11 @@ Remember: Respond with ONLY the JSON object, no additional text."""
     if 'choices' in response_data and len(response_data['choices']) > 0:
         structured_response = response_data['choices'][0]['message']['content']
         cleaned_response = structured_response.strip('```json\n').strip('```').strip()
+        
+        # Fix common JSON escaping issues
+        cleaned_response = cleaned_response.replace('\\', '\\\\')  # Escape backslashes
+        cleaned_response = cleaned_response.replace('\\"', '"')   # Fix over-escaped quotes
+        
         try:
             response_dict = json.loads(cleaned_response)
             # Ensure required fields exist
