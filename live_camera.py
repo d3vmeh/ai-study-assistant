@@ -1,7 +1,6 @@
 import streamlit as st
 import os
 from PIL import Image
-import io
 from assistant_response import get_ai_response
 
 def initialize_camera_session():
@@ -12,6 +11,8 @@ def initialize_camera_session():
         st.session_state.captured_image = None
     if "camera_messages" not in st.session_state:
         st.session_state.camera_messages = []
+    if "current_image_path" not in st.session_state:
+        st.session_state.current_image_path = None
 
 def capture_image_from_camera():
     """Capture image from camera using Streamlit's camera_input"""
@@ -21,16 +22,18 @@ def capture_image_from_camera():
         # Convert camera input to PIL Image
         image = Image.open(img_bytes)
         
+        # Store in session state
         st.session_state.captured_image = image
         st.session_state.camera_active = True
         
-        # Save temporarily for processing
-        temp_path = "temp_camera_capture.png"
+        # Save to a stable location for later processing
+        temp_path = "camera_capture_current.png"
         image.save(temp_path)
+        st.session_state.current_image_path = temp_path
         
-        return temp_path
+        return True
     
-    return None
+    return False
 
 def process_camera_image(image_path, question):
     """Process captured camera image with AI"""
@@ -57,23 +60,15 @@ def process_camera_image(image_path, question):
     except Exception as e:
         st.error(f"Error processing camera image: {str(e)}")
         return None
-    finally:
-        # Clean up temporary file
-        if os.path.exists(image_path):
-            os.remove(image_path)
 
 def display_camera_interface():
     """Display the camera interface in Streamlit"""
     st.title("📸 AI Study Assistant - Live Camera")
-    
-    # Initialize session state
     initialize_camera_session()
     
-    # Camera capture section
+    # Camera capture
     st.header("Capture Study Material")
-    
-    # Capture image from camera
-    temp_image_path = capture_image_from_camera()
+    capture_image_from_camera()
     
     # Display captured image
     if st.session_state.captured_image:
@@ -84,8 +79,8 @@ def display_camera_interface():
         
         # Process button
         if st.button("Analyze Image", type="primary"):
-            if question and temp_image_path:
-                response = process_camera_image(temp_image_path, question)
+            if question and hasattr(st.session_state, 'current_image_path'):
+                response = process_camera_image(st.session_state.current_image_path, question)
                 
                 if response:
                     st.success("Analysis complete!")
@@ -138,9 +133,15 @@ def display_camera_interface():
                         st.write(content)
     
     if st.button("Clear Camera Session"):
+        # Clean up temporary file if it exists
+        if hasattr(st.session_state, 'current_image_path') and st.session_state.current_image_path:
+            if os.path.exists(st.session_state.current_image_path):
+                os.remove(st.session_state.current_image_path)
+        
         st.session_state.camera_active = False
         st.session_state.captured_image = None
         st.session_state.camera_messages = []
+        st.session_state.current_image_path = None
         st.rerun()
 
 def main():
