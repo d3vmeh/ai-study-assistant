@@ -21,7 +21,6 @@ def capture_image_from_camera():
         # Convert camera input to PIL Image
         image = Image.open(img_bytes)
         
-        # Store in session state
         st.session_state.captured_image = image
         st.session_state.camera_active = True
         

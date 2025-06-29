@@ -11,7 +11,7 @@ def encode_image(path):
 
 
 
-def get_assistant_response(question,image_path):
+def get_ai_response(question,image_path):
     encoded_image = encode_image(image_path)
 
     headers = {
